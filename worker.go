@@ -80,8 +80,9 @@ func (w *Worker) runJob(wj *WorkerJob) {
 	for {
 		select {
 		case <-w.ctx.Done():
-
 			w.logger.Printf("Worker %v stopped, due to timeout\n", wj.Name)
+			wj.Active = false
+			return
 		case <-ticker.C:
 			if !wj.Active {
 				continue
@@ -114,8 +115,11 @@ func (w *Worker) executeJob(wj *WorkerJob) {
 		} else {
 			w.logger.Printf("Job %v finished successfully\n", wj.Name)
 		}
+		wj.Active = false
 	case <-jobCtx.Done():
 		w.logger.Printf("Job %v timed out\n", wj.Name)
+		wj.Active = false
+		<-done
 	}
 }
 
