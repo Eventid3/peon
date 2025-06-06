@@ -3,22 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
-	"peon"
 	"time"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, _ := context.WithTimeout(context.Background(), time.Duration(time.Second * 10))
 
-	worker := peon.NewWorker()
-	counter := CounterJob{[]int{1, 2, 3, 4, 5}}
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
 
-	// TODO this fails at a lower timeout duration than the job takes to execute
-	worker.AddRepeatableJob("Counter Job", time.Second, time.Second*6, &counter)
-
-	worker.StartWorker(ctx)
-	time.Sleep(time.Second * 3)
-	worker.StopWorker()
+	for {
+		select{
+			case <- ticker.C:
+				fmt.Println("Tick!")
+			case <-ctx.Done():
+				fmt.Println("Done!")
+				return
+		}
+	}
 }
 
 type CounterJob struct {
