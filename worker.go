@@ -4,123 +4,83 @@ import (
 	"context"
 	"log"
 	"os"
-	"sync"
 	"time"
 )
-
-type Job interface {
-	Execute(context.Context) error
-}
 
 type WorkerJob struct {
 	Name     string
 	Interval time.Duration
-	Timeout  time.Duration
 	Active   bool
 	Job      Job
 }
 
 type Worker struct {
-	jobs   map[string]*WorkerJob
-	logger *log.Logger
-	ctx    context.Context
-	cancel context.CancelFunc
-	mutex  sync.Mutex
-	wg     sync.WaitGroup
+	workerJob *WorkerJob
+	logger    *log.Logger
+	ctx       context.Context
+	cancel    context.CancelFunc
+	ticker    *time.Ticker
+	// wg        sync.WaitGroup
 }
 
 func NewWorker() *Worker {
 	return &Worker{
-		jobs:   make(map[string]*WorkerJob),
 		logger: log.New(os.Stdout, "[Worker] ", log.Ltime),
 	}
 }
 
-func (w *Worker) AddRepeatableJob(name string, interval time.Duration, timeout time.Duration, job Job) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	_, j := w.jobs[name]
-	if j {
-		w.logger.Printf("Cannot add job with name %v: name already exists.", name)
-		return
-	}
-
+func (w *Worker) AddRepeatableJob(name string, interval time.Duration, job Job) {
 	workerJob := WorkerJob{
 		Name:     name,
 		Interval: interval,
-		Timeout:  timeout,
 		Active:   false,
 		Job:      job,
 	}
 
-	w.jobs[name] = &workerJob
+	w.workerJob = &workerJob
 }
 
-func (w *Worker) StartWorker(ctx context.Context) {
-	w.ctx, w.cancel = context.WithCancel(ctx)
+func (w *Worker) StartWorker() {
+	w.ctx, w.cancel = context.WithCancel(context.Background())
+	w.workerJob.Active = true
+	w.ticker = time.NewTicker(w.workerJob.Interval)
 
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	for _, wj := range w.jobs {
-		wj.Active = true
-		w.wg.Add(1)
-		go w.runJob(wj)
-
-	}
+	go w.runJob()
 }
 
-func (w *Worker) runJob(wj *WorkerJob) {
-	defer w.wg.Done()
-
-	ticker := time.NewTicker(wj.Interval)
-	defer ticker.Stop()
-
+func (w *Worker) runJob() {
 	for {
 		select {
-		case <-w.ctx.Done():
-			w.logger.Printf("Worker %v stopped, due to timeout\n", wj.Name)
-			wj.Active = false
-			return
-		case <-ticker.C:
-			if !wj.Active {
+		case <-w.ticker.C:
+			if !w.workerJob.Active {
+				w.logger.Printf("Worker %v paused\n", w.workerJob.Name)
 				continue
 			}
-			w.executeJob(wj)
+			w.logger.Printf("Starting job %v\n", w.workerJob.Name)
+			err := w.workerJob.Job.Execute()
+			if err != nil {
+				w.logger.Printf("Error while running job %v: %v\n", w.workerJob.Name, err)
+			} else {
+				w.logger.Printf("Job %v completed successfully\n", w.workerJob.Name)
+			}
+		case <-w.ctx.Done():
+			w.logger.Printf("Worker %v stopped, due to context cancellation\n", w.workerJob.Name)
+			w.workerJob.Active = false
+			return
 		}
 	}
 }
 
-func (w *Worker) executeJob(wj *WorkerJob) {
-	w.logger.Printf("Executing job %v\n", wj.Name)
+func (w *Worker) PauseWorker() {
+	w.logger.Printf("Pausing worker %v\n", w.workerJob.Name)
+	w.workerJob.Active = false
+	w.ticker.Stop()
+}
 
-	jobCtx := w.ctx
-	var cancel context.CancelFunc
-
-	if wj.Timeout > 0 {
-		jobCtx, cancel = context.WithTimeout(jobCtx, wj.Timeout)
-		defer cancel()
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- wj.Job.Execute(jobCtx)
-	}()
-
-	select {
-	case err := <-done:
-		if err != nil {
-			w.logger.Printf("Job %v failed: %v\n", wj.Name, err)
-		} else {
-			w.logger.Printf("Job %v finished successfully\n", wj.Name)
-		}
-		wj.Active = false
-	case <-jobCtx.Done():
-		w.logger.Printf("Job %v timed out\n", wj.Name)
-		wj.Active = false
-		<-done
-	}
+func (w *Worker) ResumeWorker() {
+	w.logger.Printf("Resuming worker %v\n", w.workerJob.Name)
+	w.workerJob.Active = true
+	w.ticker.Reset(w.workerJob.Interval)
 }
 
 func (w *Worker) StopWorker() {
@@ -128,26 +88,5 @@ func (w *Worker) StopWorker() {
 	if w.cancel != nil {
 		w.cancel()
 	}
-	w.wg.Wait()
 	w.logger.Printf("Worker stopped\n")
-}
-
-func (w *Worker) StopJob(name string) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	if job, exists := w.jobs[name]; exists {
-		job.Active = false
-		w.logger.Printf("Job %v stopped\n", name)
-	}
-}
-
-func (w *Worker) StartJob(name string) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	if job, exists := w.jobs[name]; exists {
-		job.Active = true
-		w.logger.Printf("Job %v started\n", name)
-	}
 }

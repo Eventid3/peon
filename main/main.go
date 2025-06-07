@@ -1,42 +1,32 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"peon"
 	"time"
 )
 
 func main() {
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(time.Second * 10))
+	worker := peon.NewWorker()
+	worker.AddRepeatableJob("Counter Job", time.Second*5, &CounterJob{numbers: []int{1, 2, 3}})
 
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select{
-			case <- ticker.C:
-				fmt.Println("Tick!")
-			case <-ctx.Done():
-				fmt.Println("Done!")
-				return
-		}
-	}
+	worker.StartWorker()
+	time.Sleep(time.Second * 14)
+	worker.PauseWorker()
+	time.Sleep(time.Second * 2)
+	worker.ResumeWorker()
+	time.Sleep(time.Second * 7)
+	worker.StopWorker()
 }
 
 type CounterJob struct {
 	numbers []int
 }
 
-func (c *CounterJob) Execute(ctx context.Context) error {
+func (c *CounterJob) Execute() error {
 	for _, num := range c.numbers {
-		select {
-		case <-ctx.Done():
-			fmt.Printf("Context timed out at number %v: %v\n", num, ctx.Err())
-			return ctx.Err()
-		default:
-			fmt.Println("Num", num)
-			time.Sleep(time.Second * 1)
-		}
+		fmt.Println("Num", num)
+		time.Sleep(time.Millisecond * 300)
 	}
 	return nil
 }
