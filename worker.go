@@ -2,6 +2,7 @@ package peon
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -23,9 +24,9 @@ type Worker struct {
 	// wg        sync.WaitGroup
 }
 
-func NewWorker() *Worker {
+func NewWorker(name string) *Worker {
 	return &Worker{
-		logger: log.New(os.Stdout, "[Worker] ", log.Ltime),
+		logger: log.New(os.Stdout, fmt.Sprintf("[Worker: %s] ", name), log.Ltime),
 	}
 }
 
@@ -53,18 +54,18 @@ func (w *Worker) runJob() {
 		select {
 		case <-w.ticker.C:
 			if !w.workerJob.Active {
-				w.logger.Printf("Worker %v paused\n", w.workerJob.Name)
+				w.logger.Println("Worker paused")
 				continue
 			}
-			w.logger.Printf("Starting job %v\n", w.workerJob.Name)
+			w.logger.Println("Starting job")
 			err := w.workerJob.Job.Execute()
 			if err != nil {
-				w.logger.Printf("Error while running job %v: %v\n", w.workerJob.Name, err)
+				w.logger.Printf("Error while running job: %v\n", err)
 			} else {
-				w.logger.Printf("Job %v completed successfully\n", w.workerJob.Name)
+				w.logger.Println("Job completed successfully")
 			}
 		case <-w.ctx.Done():
-			w.logger.Printf("Worker %v stopped, due to context cancellation\n", w.workerJob.Name)
+			w.logger.Println("Worker stopped, due to context cancellation")
 			w.workerJob.Active = false
 			return
 		}
@@ -72,21 +73,21 @@ func (w *Worker) runJob() {
 }
 
 func (w *Worker) PauseWorker() {
-	w.logger.Printf("Pausing worker %v\n", w.workerJob.Name)
+	w.logger.Println("Pausing worker")
 	w.workerJob.Active = false
 	w.ticker.Stop()
 }
 
 func (w *Worker) ResumeWorker() {
-	w.logger.Printf("Resuming worker %v\n", w.workerJob.Name)
+	w.logger.Println("Resuming worker")
 	w.workerJob.Active = true
 	w.ticker.Reset(w.workerJob.Interval)
 }
 
 func (w *Worker) StopWorker() {
-	w.logger.Printf("Stopping worker\n")
+	w.logger.Println("Stopping worker")
 	if w.cancel != nil {
 		w.cancel()
 	}
-	w.logger.Printf("Worker stopped\n")
+	w.logger.Println("Worker stopped")
 }
