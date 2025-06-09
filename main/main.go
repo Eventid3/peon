@@ -7,16 +7,14 @@ import (
 )
 
 func main() {
-	worker := peon.NewWorker()
-	worker.AddRepeatableJob("Counter Job", time.Second*5, &CounterJob{numbers: []int{1, 2, 3}})
+	cj1 := &CounterJob{numbers: []int{1, 2, 3}}
+	cj2 := &CounterJob{numbers: []int{4, 5, 6}}
+	workforce := peon.NewWorkforce("Counters")
+	workforce.AddRepeatableJob("Counter Job 1", time.Second*5, cj1)
+	workforce.AddRepeatableJob("Counter Job 2", time.Second*10, cj2)
+	workforce.StartAllWorkers()
 
-	worker.StartWorker()
-	time.Sleep(time.Second * 14)
-	worker.PauseWorker()
-	time.Sleep(time.Second * 2)
-	worker.ResumeWorker()
-	time.Sleep(time.Second * 7)
-	worker.StopWorker()
+	time.Sleep(time.Second * 30)
 }
 
 type CounterJob struct {
