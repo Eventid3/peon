@@ -12,7 +12,7 @@ type WorkerJob struct {
 	Name     string
 	Interval time.Duration
 	Active   bool
-	Job      Job
+	Job      func() error
 }
 
 type Worker struct {
@@ -30,7 +30,7 @@ func NewWorker(name string) *Worker {
 	}
 }
 
-func (w *Worker) AddRepeatableJob(name string, interval time.Duration, job Job) {
+func (w *Worker) AddRepeatableJob(name string, interval time.Duration, job func() error) {
 	workerJob := WorkerJob{
 		Name:     name,
 		Interval: interval,
@@ -58,7 +58,7 @@ func (w *Worker) runJob() {
 				continue
 			}
 			w.logger.Println("Starting job")
-			err := w.workerJob.Job.Execute()
+			err := w.workerJob.Job()
 			if err != nil {
 				w.logger.Printf("Error while running job: %v\n", err)
 			} else {

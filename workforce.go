@@ -19,7 +19,7 @@ func NewWorkforce(name string) *Workforce {
 	}
 }
 
-func (wf *Workforce) AddRepeatableJob(name string, interval time.Duration, job Job) {
+func (wf *Workforce) AddRepeatableJob(name string, interval time.Duration, job func() error) {
 	_, ok := wf.workers[name]
 	if ok {
 		fmt.Printf("Worker with name %s already exists\n", name)
