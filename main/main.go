@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"peon"
+	"github.com/Eventid3/peon"
 	"time"
 )
 
