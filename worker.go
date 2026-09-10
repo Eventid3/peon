@@ -9,14 +9,23 @@ import (
 )
 
 type WorkerJob struct {
+	Exec func() error
+}
+
+type FireAndForgetJob struct {
+	Name string
+	Job  WorkerJob
+}
+
+type RepeatableWorkerJob struct {
 	Name     string
 	Interval time.Duration
 	Active   bool
-	Job      func() error
+	Job      WorkerJob
 }
 
 type Worker struct {
-	workerJob *WorkerJob
+	workerJob *RepeatableWorkerJob
 	logger    *log.Logger
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -30,8 +39,8 @@ func NewWorker(name string) *Worker {
 	}
 }
 
-func (w *Worker) AddRepeatableJob(name string, interval time.Duration, job func() error) {
-	workerJob := WorkerJob{
+func (w *Worker) AddRepeatableJob(name string, interval time.Duration, job WorkerJob) {
+	workerJob := RepeatableWorkerJob{
 		Name:     name,
 		Interval: interval,
 		Active:   false,
@@ -58,7 +67,7 @@ func (w *Worker) runJob() {
 				continue
 			}
 			w.logger.Println("Starting job")
-			err := w.workerJob.Job()
+			err := w.workerJob.Job.Exec()
 			if err != nil {
 				w.logger.Printf("Error while running job: %v\n", err)
 			} else {
