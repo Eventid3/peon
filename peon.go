@@ -1,3 +1,5 @@
+// Package peon holds the main entrypoint for starting and configuring
+// a new Peon instance and registering jobs
 package peon
 
 import (
