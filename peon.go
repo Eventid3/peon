@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Eventid3/peon/database"
 	"github.com/Eventid3/peon/internal"
 	"github.com/Eventid3/peon/job"
 )
@@ -21,6 +22,7 @@ type jobRegistration struct {
 type Peon struct {
 	workerPool   []internal.Worker
 	queue        *list.List
+	databaseCtx  *database.DatabaseContext
 	jobRegistry  map[string]jobRegistration
 	jobChan      chan internal.WorkerJob
 	responseChan chan internal.WorkerResult
@@ -28,6 +30,7 @@ type Peon struct {
 }
 
 func NewPeon(numWorkers int) *Peon {
+	databaseCtx := database.NewDatabaseContext("postgres://admin:password@localhost:5432/postgres?sslmode=disable")
 	jobChan := make(chan internal.WorkerJob)
 	responseChan := make(chan internal.WorkerResult)
 	workerPool := make([]internal.Worker, numWorkers)
@@ -39,6 +42,7 @@ func NewPeon(numWorkers int) *Peon {
 	return &Peon{
 		workerPool:   workerPool,
 		queue:        list.New(),
+		databaseCtx:  databaseCtx,
 		jobRegistry:  make(map[string]jobRegistration),
 		jobChan:      jobChan,
 		responseChan: responseChan,
