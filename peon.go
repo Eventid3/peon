@@ -30,7 +30,7 @@ type Peon struct {
 }
 
 func NewPeon(numWorkers int) *Peon {
-	databaseCtx := database.NewDatabaseContext("postgres://admin:password@localhost:5432/postgres?sslmode=disable")
+	databaseCtx := database.NewDatabaseContext("postgres://admin:password@localhost:5432")
 	jobChan := make(chan internal.WorkerJob)
 	responseChan := make(chan internal.WorkerResult)
 	workerPool := make([]internal.Worker, numWorkers)
