@@ -1,3 +1,4 @@
+// Package database
 package database
 
 import (
@@ -96,7 +97,7 @@ tablename = $1)`
 		_, err = conn.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
-				id uuid PRIMARY KEY,
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 				name text UNIQUE,
 				timing varchar(16),
 				retry_count int CHECK (retry_count > 0),
@@ -116,13 +117,13 @@ tablename = $1)`
 	if err != nil {
 		return fmt.Errorf("error scanning for job runs table: %w", err)
 	}
-	// TODO create table
+
 	if !jobRunsExists {
 		fmt.Println("[Database] creating job runs table...")
 		_, err = conn.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
-				id uuid PRIMARY KEY,
+				id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 				job_id uuid REFERENCES %s(id),
 				status text NOT NULL,
 				next_retry_at text,
@@ -147,7 +148,7 @@ func (dbCtx *DatabaseContext) Connect() (*pgx.Conn, error) {
 		dbCtx.connectionString,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting to database: %w", err)
 	}
 
 	return conn, nil

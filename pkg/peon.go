@@ -1,6 +1,6 @@
-// Package peon holds the main entrypoint for starting and configuring
+// Package pkg holds the main entrypoint for starting and configuring
 // a new Peon instance and registering jobs
-package peon
+package pkg
 
 import (
 	"container/list"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Eventid3/peon/database"
+	"github.com/Eventid3/peon/database/models"
 	"github.com/Eventid3/peon/internal"
 	"github.com/Eventid3/peon/job"
 )
@@ -55,6 +56,17 @@ func (p *Peon) RegisterJob(jobName string, job job.Job, timing time.Duration) er
 	if ok {
 		return fmt.Errorf("could not register %s - job already exists in job registry", jobName)
 	}
+
+	err := p.databaseCtx.CreateJobDefinition(models.JobDefinition{
+		Name:       jobName,
+		Timing:     timing.String(),
+		Active:     true,
+		RetryCount: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("error registering job %s: %w", jobName, err)
+	}
+
 	p.jobRegistry[jobName] = jobRegistration{jobName, job, timing}
 	return nil
 }

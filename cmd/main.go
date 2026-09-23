@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Eventid3/peon"
+	peon "github.com/Eventid3/peon/pkg"
 )
 
 type SomeJob struct {
@@ -26,7 +26,10 @@ func (j *SomeJob) Exec(_ context.Context) error {
 func main() {
 	p := peon.NewPeon(1)
 	job := NewSomeJob()
-	_ = p.RegisterJob("SomeJob", &job, time.Second*1)
+	err := p.RegisterJob("SomeJob", &job, time.Second*1)
+	if err != nil {
+		fmt.Println("Error in main.go: %w", err)
+	}
 
 	fmt.Println("State of SomeJob before starting peon:")
 	fmt.Println(job)
