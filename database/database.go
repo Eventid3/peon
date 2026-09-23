@@ -96,10 +96,10 @@ tablename = $1)`
 		_, err = conn.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
-				id uuid primary key,
-				name text,
+				id uuid PRIMARY KEY,
+				name text UNIQUE,
 				timing varchar(16),
-				retry_count int,
+				retry_count int CHECK (retry_count > 0),
 				active boolean
 				)
 				`, JOB_DEFINITIONS_TABLE),
@@ -122,12 +122,12 @@ tablename = $1)`
 		_, err = conn.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
-				id uuid primary key,
-				job_id uuid references %s(id),
-				status text,
+				id uuid PRIMARY KEY,
+				job_id uuid REFERENCES %s(id),
+				status text NOT NULL,
 				next_retry_at text,
 				attempt_count int,
-				error text 
+				error text
 				)
 				`, JOB_RUNS_TABLE, JOB_DEFINITIONS_TABLE),
 		)
