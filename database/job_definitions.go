@@ -8,10 +8,10 @@ import (
 	"github.com/Eventid3/peon/database/models"
 )
 
-func (dbCtx *DatabaseContext) CreateJobDefinition(jobDefinition models.JobDefinition) error {
+func (dbCtx *DatabaseContext) CreateJobDefinition(jd models.JobDefinition) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 
@@ -24,10 +24,10 @@ func (dbCtx *DatabaseContext) CreateJobDefinition(jobDefinition models.JobDefini
 	`, JOB_DEFINITIONS_TABLE)
 
 	_, err = conn.Exec(context.Background(), sql,
-		jobDefinition.Name,
-		jobDefinition.Timing,
-		jobDefinition.RetryCount,
-		jobDefinition.Active,
+		jd.Name,
+		jd.Timing,
+		jd.RetryCount,
+		jd.Active,
 	)
 	if err != nil {
 		return fmt.Errorf("error inserting job definition: %w", err)
@@ -36,10 +36,10 @@ func (dbCtx *DatabaseContext) CreateJobDefinition(jobDefinition models.JobDefini
 	return nil
 }
 
-func (dbCtx *DatabaseContext) UpdateJobDefinition(jobDefinition models.JobDefinition) error {
+func (dbCtx *DatabaseContext) UpdateJobDefinition(jd models.JobDefinition) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 
@@ -51,10 +51,10 @@ func (dbCtx *DatabaseContext) UpdateJobDefinition(jobDefinition models.JobDefini
 
 	_, err = conn.Exec(context.Background(), sql,
 		JOB_DEFINITIONS_TABLE,
-		jobDefinition.Timing,
-		jobDefinition.RetryCount,
-		jobDefinition.Active,
-		jobDefinition.Name,
+		jd.Timing,
+		jd.RetryCount,
+		jd.Active,
+		jd.Name,
 	)
 	if err != nil {
 		return fmt.Errorf("error updating job definition: %w", err)
@@ -66,7 +66,7 @@ func (dbCtx *DatabaseContext) UpdateJobDefinition(jobDefinition models.JobDefini
 func (dbCtx *DatabaseContext) GetJobDefinitionByName(name string) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 
@@ -90,7 +90,7 @@ func (dbCtx *DatabaseContext) GetJobDefinitionByName(name string) error {
 func (dbCtx *DatabaseContext) GetJobDefinitionByID(id uuid.UUID) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 
@@ -111,14 +111,14 @@ func (dbCtx *DatabaseContext) GetJobDefinitionByID(id uuid.UUID) error {
 	return nil
 }
 
-func (dbCtx *DatabaseContext) DeleteJobDefinition(jobDefinition models.JobDefinition) error {
-	return dbCtx.DeleteJobDefinitionByName(jobDefinition.Name)
+func (dbCtx *DatabaseContext) DeleteJobDefinition(jd models.JobDefinition) error {
+	return dbCtx.DeleteJobDefinitionByName(jd.Name)
 }
 
 func (dbCtx *DatabaseContext) DeleteJobDefinitionByID(id uuid.UUID) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 
@@ -139,7 +139,7 @@ func (dbCtx *DatabaseContext) DeleteJobDefinitionByID(id uuid.UUID) error {
 func (dbCtx *DatabaseContext) DeleteJobDefinitionByName(name string) error {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return nil
+		return err
 	}
 	defer conn.Close(context.Background())
 

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	TABLE_NAME            = "peon_db"
+	DATABASE_NAME         = "peon_db"
 	JOB_DEFINITIONS_TABLE = "job_definitions"
 	JOB_RUNS_TABLE        = "job_runs"
 )
@@ -20,7 +20,7 @@ type DatabaseContext struct {
 }
 
 func NewDatabaseContext(baseConnStr string) *DatabaseContext {
-	connStr := fmt.Sprintf("%s/%s?sslmode=disable", baseConnStr, TABLE_NAME)
+	connStr := fmt.Sprintf("%s/%s?sslmode=disable", baseConnStr, DATABASE_NAME)
 	dbCtx := DatabaseContext{baseConnectionString: baseConnStr, connectionString: connStr}
 	err := dbCtx.initDatabase()
 	if err != nil {
@@ -52,14 +52,14 @@ func (dbCtx *DatabaseContext) initDatabase() error {
 
 	var exists bool
 
-	err = conn.QueryRow(context.Background(), sql, TABLE_NAME).Scan(&exists)
+	err = conn.QueryRow(context.Background(), sql, DATABASE_NAME).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("error initializing the database: %w", err)
 	}
 
 	if !exists {
 		fmt.Println("[Database] creating database...")
-		_, err = conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", TABLE_NAME))
+		_, err = conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", DATABASE_NAME))
 		if err != nil {
 			return fmt.Errorf("error creating database: %w", err)
 		}

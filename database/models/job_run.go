@@ -6,7 +6,7 @@ import (
 )
 
 type JobRun struct {
-	ID           uuid.UUID
+	ID           uint32
 	JobID        uuid.UUID
 	Status       string
 	NextRetryAt  time.Time
