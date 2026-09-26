@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 type DatabaseContext struct {
 	baseConnectionString string
 	connectionString     string
+	pool                 *pgxpool.Pool
 }
 
 func NewDatabaseContext(baseConnStr string) *DatabaseContext {
@@ -26,6 +28,13 @@ func NewDatabaseContext(baseConnStr string) *DatabaseContext {
 	if err != nil {
 		fmt.Println("error initializing database: %w", err)
 	}
+
+	pool, err := pgxpool.New(context.Background(), connStr)
+	if err != nil {
+		fmt.Println("error creating connection pool: %w", err)
+	}
+	dbCtx.pool = pool
+
 	err = dbCtx.initTables()
 	if err != nil {
 		fmt.Println("error initializing tables: %w", err)
@@ -71,30 +80,21 @@ func (dbCtx *DatabaseContext) initDatabase() error {
 }
 
 func (dbCtx *DatabaseContext) initTables() error {
-	fmt.Println("[Database] initializing tables...")
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return fmt.Errorf("error connecting to the database context: %w", err)
-	}
-	defer func() {
-		_ = conn.Close(context.Background())
-	}()
-
 	sql := `SELECT EXISTS(
-SELECT 1 FROM pg_catalog.pg_tables
-WHERE schemaname != 'pg_catalog' AND
-schemaname != 'information_schema' AND
-tablename = $1)`
+	SELECT 1 FROM pg_catalog.pg_tables
+	WHERE schemaname != 'pg_catalog' AND
+	schemaname != 'information_schema' AND
+	tablename = $1)`
 
 	var jobDefinitionsExists bool
-	err = conn.QueryRow(context.Background(), sql, JOB_DEFINITIONS_TABLE).Scan(&jobDefinitionsExists)
+	err := dbCtx.pool.QueryRow(context.Background(), sql, JOB_DEFINITIONS_TABLE).Scan(&jobDefinitionsExists)
 	if err != nil {
 		return fmt.Errorf("error scanning for job definitions table: %w", err)
 	}
 
 	if !jobDefinitionsExists {
 		fmt.Println("[Database] creating job definitions table..")
-		_, err = conn.Exec(context.Background(),
+		_, err = dbCtx.pool.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -114,14 +114,14 @@ tablename = $1)`
 	}
 
 	var jobRunsExists bool
-	err = conn.QueryRow(context.Background(), sql, JOB_RUNS_TABLE).Scan(&jobRunsExists)
+	err = dbCtx.pool.QueryRow(context.Background(), sql, JOB_RUNS_TABLE).Scan(&jobRunsExists)
 	if err != nil {
 		return fmt.Errorf("error scanning for job runs table: %w", err)
 	}
 
 	if !jobRunsExists {
 		fmt.Println("[Database] creating job runs table...")
-		_, err = conn.Exec(context.Background(),
+		_, err = dbCtx.pool.Exec(context.Background(),
 			fmt.Sprintf(`
 				CREATE TABLE %s (
 				id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -143,16 +143,4 @@ tablename = $1)`
 	}
 
 	return nil
-}
-
-func (dbCtx *DatabaseContext) Connect() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(
-		context.Background(),
-		dbCtx.connectionString,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to database: %w", err)
-	}
-
-	return conn, nil
 }

@@ -35,18 +35,12 @@ func (js JobState) String() string {
 }
 
 func (dbCtx *DatabaseContext) CreateJobRun(jd models.JobDefinition) error {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
-
 	sql := fmt.Sprintf(`
 		INSERT INTO %s (job_id, status, attempt_count)
 		VALUES ($1, $2, $3)
 		`, JOB_RUNS_TABLE)
 
-	_, err = conn.Exec(context.Background(), sql, jd.ID, Queued.String(), 0)
+	_, err := dbCtx.pool.Exec(context.Background(), sql, jd.ID, Queued.String(), 0)
 	if err != nil {
 		return fmt.Errorf("error queuing job in database: %w", err)
 	}
@@ -54,46 +48,21 @@ func (dbCtx *DatabaseContext) CreateJobRun(jd models.JobDefinition) error {
 }
 
 func (dbCtx *DatabaseContext) GetJobRunsByName(jobName string) ([]models.JobRun, error) {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return []models.JobRun{}, err
-	}
-	defer conn.Close(context.Background())
 	return []models.JobRun{}, nil
 }
 
 func (dbCtx *DatabaseContext) GetJobsToRun() ([]uuid.UUID, error) {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return []uuid.UUID{}, err
-	}
-	defer conn.Close(context.Background())
 	return []uuid.UUID{}, nil
 }
 
 func (dbCtx *DatabaseContext) UpdateJobRun(jr models.JobRun) error {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
 	return nil
 }
 
 func (dbCtx *DatabaseContext) DeleteJobRunByID(id uint32) error {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
 	return nil
 }
 
 func (dbCtx *DatabaseContext) ClearJobRuns() error {
-	conn, err := dbCtx.Connect()
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
 	return nil
 }
