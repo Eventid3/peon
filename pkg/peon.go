@@ -59,9 +59,10 @@ func (p *Peon) RegisterJob(jobName string, job job.Job, timing time.Duration) er
 
 	err := p.databaseCtx.CreateJobDefinition(models.JobDefinition{
 		Name:       jobName,
-		Timing:     timing.String(),
+		Timing:     timing,
 		Active:     true,
 		RetryCount: 1,
+		NextRunAt:  time.Now().Add(timing),
 	})
 	if err != nil {
 		return fmt.Errorf("error registering job %s: %w", jobName, err)

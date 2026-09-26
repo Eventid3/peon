@@ -2,12 +2,16 @@
 // job scheduler
 package models
 
-import "uuid"
+import (
+	"time"
+	"uuid"
+)
 
 type JobDefinition struct {
 	ID         uuid.UUID
 	Name       string
-	Timing     string
+	Timing     time.Duration
+	NextRunAt  time.Time
 	RetryCount int
 	Active     bool
 }

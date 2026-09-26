@@ -99,7 +99,8 @@ tablename = $1)`
 				CREATE TABLE %s (
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 				name text UNIQUE,
-				timing varchar(16),
+				timing interval,
+				next_run_at timestamp,
 				retry_count int CHECK (retry_count > 0),
 				active boolean
 				)
@@ -126,7 +127,9 @@ tablename = $1)`
 				id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 				job_id uuid REFERENCES %s(id),
 				status text NOT NULL,
-				next_retry_at text,
+				started_at timestamp,
+				next_retry_at timestamp,
+				completed_at timestamp,
 				attempt_count int,
 				error text
 				)

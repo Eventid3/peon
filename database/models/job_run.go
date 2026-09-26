@@ -10,6 +10,8 @@ type JobRun struct {
 	JobID        uuid.UUID
 	Status       string
 	NextRetryAt  time.Time
+	StartedAt    time.Time
+	CompletedAt  time.Time
 	AttemptCount int
 	Error        string
 }

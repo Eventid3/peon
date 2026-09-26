@@ -16,11 +16,16 @@ func (dbCtx *DatabaseContext) CreateJobDefinition(jd models.JobDefinition) error
 	defer conn.Close(context.Background())
 
 	sql := fmt.Sprintf(`
-		INSERT INTO %s (name, timing, retry_count, active)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO %s (name, timing, retry_count, active, next_run_at)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (name) DO UPDATE
 		SET timing = EXCLUDED.timing,
-		retry_count = EXCLUDED.retry_count
+		retry_count = EXCLUDED.retry_count,
+		next_run_at = CASE
+			WHEN job_definitions.next_run_at IS DISTINCT FROM EXCLUDED.next_run_at
+			THEN EXCLUDED.next_run_at
+			ELSE job_definitions.next_run_at
+		END;
 	`, JOB_DEFINITIONS_TABLE)
 
 	_, err = conn.Exec(context.Background(), sql,
@@ -28,6 +33,7 @@ func (dbCtx *DatabaseContext) CreateJobDefinition(jd models.JobDefinition) error
 		jd.Timing,
 		jd.RetryCount,
 		jd.Active,
+		jd.NextRunAt,
 	)
 	if err != nil {
 		return fmt.Errorf("error inserting job definition: %w", err)
