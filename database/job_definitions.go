@@ -6,6 +6,7 @@ import (
 	"uuid"
 
 	"github.com/Eventid3/peon/database/models"
+	"github.com/jackc/pgx/v5"
 )
 
 func (dbCtx *DatabaseContext) CreateJobDefinition(jd models.JobDefinition) error {
@@ -22,7 +23,7 @@ func (dbCtx *DatabaseContext) CreateJobDefinition(jd models.JobDefinition) error
 		SET timing = EXCLUDED.timing,
 		retry_count = EXCLUDED.retry_count,
 		next_run_at = CASE
-			WHEN job_definitions.next_run_at IS DISTINCT FROM EXCLUDED.next_run_at
+			WHEN job_definitions.timing IS DISTINCT FROM EXCLUDED.timing
 			THEN EXCLUDED.next_run_at
 			ELSE job_definitions.next_run_at
 		END;
@@ -49,14 +50,13 @@ func (dbCtx *DatabaseContext) UpdateJobDefinition(jd models.JobDefinition) error
 	}
 	defer conn.Close(context.Background())
 
-	sql := `
-	UPDATE $1 
-	SET timing = $2, retry_count = $3, active = $4
-	WHERE name = $5
-	`
+	sql := fmt.Sprintf(`
+	UPDATE %s 
+	SET timing = $1, retry_count = $2, active = $3
+	WHERE name = $4
+	`, JOB_DEFINITIONS_TABLE)
 
 	_, err = conn.Exec(context.Background(), sql,
-		JOB_DEFINITIONS_TABLE,
 		jd.Timing,
 		jd.RetryCount,
 		jd.Active,
@@ -69,52 +69,81 @@ func (dbCtx *DatabaseContext) UpdateJobDefinition(jd models.JobDefinition) error
 	return nil
 }
 
-func (dbCtx *DatabaseContext) GetJobDefinitionByName(name string) error {
+func (dbCtx *DatabaseContext) GetJobDefinitionByName(name string) (models.JobDefinition, error) {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return err
+		return models.JobDefinition{}, err
 	}
 	defer conn.Close(context.Background())
 
-	sql := `
-	SELECT id, name, timing, retry_count, active
-	FROM $1 WHERE name = $2
-	`
+	sql := fmt.Sprintf(`
+	SELECT id, name, timing, retry_count, active FROM %s
+	WHERE name = $1
+	`, JOB_DEFINITIONS_TABLE)
 
-	var jobDef models.JobDefinition
-
-	err = conn.QueryRow(context.Background(), sql,
-		JOB_DEFINITIONS_TABLE,
+	rows, err := conn.Query(context.Background(), sql,
 		name,
-	).Scan(&jobDef)
+	)
 	if err != nil {
-		return fmt.Errorf("error updating job definition: %w", err)
+		return models.JobDefinition{}, fmt.Errorf("error querying job definition: %w", err)
 	}
-	return nil
+
+	jobDef, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.JobDefinition])
+	if err != nil {
+		return models.JobDefinition{}, fmt.Errorf("error collecting job definition: %w", err)
+	}
+	return jobDef, nil
 }
 
-func (dbCtx *DatabaseContext) GetJobDefinitionByID(id uuid.UUID) error {
+func (dbCtx *DatabaseContext) GetJobDefinitionByID(id uuid.UUID) (models.JobDefinition, error) {
 	conn, err := dbCtx.Connect()
 	if err != nil {
-		return err
+		return models.JobDefinition{}, err
 	}
 	defer conn.Close(context.Background())
 
-	sql := `
-	SELECT id, name, timing, retry_count, active
-	FROM $1 WHERE id = $2
-	`
+	sql := fmt.Sprintf(`
+	SELECT id, name, timing, retry_count, active, next_run_at FROM %s
+	WHERE id = $2
+	`, JOB_DEFINITIONS_TABLE)
 
-	var jobDef models.JobDefinition
-
-	err = conn.QueryRow(context.Background(), sql,
-		JOB_DEFINITIONS_TABLE,
+	rows, err := conn.Query(context.Background(), sql,
 		id,
-	).Scan(&jobDef)
+	)
 	if err != nil {
-		return fmt.Errorf("error updating job definition: %w", err)
+		return models.JobDefinition{}, fmt.Errorf("error querying job definition: %w", err)
 	}
-	return nil
+
+	jobDef, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.JobDefinition])
+	if err != nil {
+		return models.JobDefinition{}, fmt.Errorf("error collecting job definition: %w", err)
+	}
+	return jobDef, nil
+}
+
+func (dbCtx *DatabaseContext) GetAllJobDefinitions() ([]models.JobDefinition, error) {
+	conn, err := dbCtx.Connect()
+	if err != nil {
+		return []models.JobDefinition{}, err
+	}
+	defer conn.Close(context.Background())
+
+	sql := fmt.Sprintf(`
+	SELECT id, name, timing, retry_count, next_run_at, active
+	FROM %s
+	`, JOB_DEFINITIONS_TABLE)
+
+	rows, err := conn.Query(context.Background(), sql)
+	if err != nil {
+		return []models.JobDefinition{}, fmt.Errorf("error querying job definitions table: %w", err)
+	}
+
+	jobDefinitions, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.JobDefinition])
+	if err != nil {
+		return []models.JobDefinition{}, fmt.Errorf("error collecting job definitions rows: %w", err)
+	}
+
+	return jobDefinitions, nil
 }
 
 func (dbCtx *DatabaseContext) DeleteJobDefinition(jd models.JobDefinition) error {
@@ -128,12 +157,11 @@ func (dbCtx *DatabaseContext) DeleteJobDefinitionByID(id uuid.UUID) error {
 	}
 	defer conn.Close(context.Background())
 
-	sql := `
-	DELETE FROM $1 WHERE id = $2
-	`
+	sql := fmt.Sprintf(`
+	DELETE FROM %s WHERE id = $1
+	`, JOB_DEFINITIONS_TABLE)
 
 	_, err = conn.Exec(context.Background(), sql,
-		JOB_DEFINITIONS_TABLE,
 		id,
 	)
 	if err != nil {
@@ -149,12 +177,11 @@ func (dbCtx *DatabaseContext) DeleteJobDefinitionByName(name string) error {
 	}
 	defer conn.Close(context.Background())
 
-	sql := `
-	DELETE FROM $1 WHERE name = $2
-	`
+	sql := fmt.Sprintf(`
+	DELETE FROM %s WHERE name = $1
+	`, JOB_DEFINITIONS_TABLE)
 
 	_, err = conn.Exec(context.Background(), sql,
-		JOB_DEFINITIONS_TABLE,
 		name,
 	)
 	if err != nil {
