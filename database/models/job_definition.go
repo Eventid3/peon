@@ -3,6 +3,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 	"uuid"
 )
@@ -11,7 +12,7 @@ type JobDefinition struct {
 	ID         uuid.UUID
 	Name       string
 	Timing     time.Duration
-	NextRunAt  time.Time
+	NextRunAt  sql.NullTime
 	RetryCount int
 	Active     bool
 }

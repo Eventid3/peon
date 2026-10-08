@@ -5,6 +5,7 @@ package pkg
 import (
 	"container/list"
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -14,19 +15,14 @@ import (
 	"github.com/Eventid3/peon/job"
 )
 
-type jobRegistration struct {
-	name   string
-	job    job.Job
-	timing time.Duration
-}
-
 type Peon struct {
 	workerPool   []internal.Worker
 	queue        *list.List
 	databaseCtx  *database.DatabaseContext
-	jobRegistry  map[string]jobRegistration
+	jobRegistry  internal.JobRegistry
 	jobChan      chan internal.WorkerJob
 	responseChan chan internal.WorkerResult
+	scheduler    *internal.Scheduler
 	running      bool
 }
 
@@ -35,6 +31,7 @@ func NewPeon(numWorkers int) *Peon {
 	jobChan := make(chan internal.WorkerJob)
 	responseChan := make(chan internal.WorkerResult)
 	workerPool := make([]internal.Worker, numWorkers)
+	jobRegistry := internal.NewJobRegistry()
 
 	for i := range workerPool {
 		workerPool[i] = internal.NewWorker(&jobChan, &responseChan)
@@ -44,9 +41,10 @@ func NewPeon(numWorkers int) *Peon {
 		workerPool:   workerPool,
 		queue:        list.New(),
 		databaseCtx:  databaseCtx,
-		jobRegistry:  make(map[string]jobRegistration),
+		jobRegistry:  jobRegistry,
 		jobChan:      jobChan,
 		responseChan: responseChan,
+		scheduler:    internal.NewScheduler(databaseCtx, jobChan, jobRegistry),
 		running:      false,
 	}
 }
@@ -62,13 +60,13 @@ func (p *Peon) RegisterJob(jobName string, job job.Job, timing time.Duration) er
 		Timing:     timing,
 		Active:     true,
 		RetryCount: 1,
-		NextRunAt:  time.Now().Add(timing),
+		NextRunAt:  sql.NullTime{Time: time.Now().Add(timing), Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("error registering job %s: %w", jobName, err)
 	}
 
-	p.jobRegistry[jobName] = jobRegistration{jobName, job, timing}
+	p.jobRegistry[jobName] = internal.JobRegistration{jobName, job, timing}
 	return nil
 }
 
@@ -78,6 +76,7 @@ func (p *Peon) Start() {
 	go p.startWorkers()
 	go p.scheduleJobs()
 	go p.handleResults()
+	p.scheduler.StartScheduler()
 }
 
 func (p *Peon) Stop() {
@@ -96,7 +95,7 @@ func (p *Peon) scheduleJobs() {
 		<-ticker.C
 		for name, jobReg := range p.jobRegistry {
 			fmt.Printf("starting job %s\n", name)
-			p.jobChan <- internal.WorkerJob{JobName: name, Job: jobReg.job}
+			p.jobChan <- internal.WorkerJob{JobName: name, Job: jobReg.Job}
 		}
 	}
 }
