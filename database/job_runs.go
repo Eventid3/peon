@@ -8,39 +8,13 @@ import (
 	"github.com/Eventid3/peon/database/models"
 )
 
-type JobState int
-
-const (
-	Queued JobState = iota
-	Running
-	Retrying
-	Failed
-	Succeeded
-)
-
-func (js JobState) String() string {
-	switch js {
-	case 0:
-		return "Queued"
-	case 1:
-		return "Running"
-	case 2:
-		return "Retrying"
-	case 3:
-		return "Failed"
-	case 4:
-		return "Succeeded"
-	}
-	return fmt.Sprintf("JobState(%v)", int(js))
-}
-
 func (dbCtx *DatabaseContext) CreateJobRun(jd models.JobDefinition) error {
 	sql := fmt.Sprintf(`
 		INSERT INTO %s (job_id, status, attempt_count)
 		VALUES ($1, $2, $3)
 		`, JOB_RUNS_TABLE)
 
-	_, err := dbCtx.pool.Exec(context.Background(), sql, jd.ID, Queued.String(), 0)
+	_, err := dbCtx.pool.Exec(context.Background(), sql, jd.ID, models.Queued.String(), 0)
 	if err != nil {
 		return fmt.Errorf("error queuing job in database: %w", err)
 	}
